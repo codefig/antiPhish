@@ -1,0 +1,334 @@
+import mechanize
+import urllib
+from bs4 import BeautifulSoup
+
+
+
+
+class Process():
+	def __init__(self, address):
+		
+		self.base_url= "https://sb-ssl.google.com/safebrowsing/api/lookup?client=phishdetect-001&key=AIzaSyB2wUihuMLzJkfz0qEVTQAZOGlUVAGd3T0&appver=1.5.2&pver=3.1&url="
+		self.user_url = address
+		self.address = address
+		self.request_url = ""
+		self.request = ""
+		self.phish_message = "This is not phishing"
+		self.urlcode = 404
+		self.urlbody = "OK"
+		self.browser = mechanize.Browser()
+		self.norton_response = ""
+		self.responseList = []
+		self.sourceCode = ""
+
+	def process_google(self):
+		self.user_url = urllib.quote_plus(self.user_url)
+		self.request_url = self.base_url + self.user_url
+		print(self.address)
+		try:
+			self.sourceCode = urllib.urlopen(self.address).read()
+			self.request = urllib.urlopen(self.request_url)
+			if self.request.code == 200:
+				self.urlcode = 200
+				self.phish_message = "This website contains: " + self.request.read() + " please you are advised to leave."
+			elif self.request.code == 204:
+				#check if the domain is the localhost
+				self.urlcode = 204
+				self.phish_message = "This is a Legitimate url, and might not contain phishing"
+			else: 
+				#try reading and passsing the url 
+				self.urlcode = 404
+				self.phish_message = "Network Error: Unable to analyse Address"
+		except Exception as e:
+			self.phish_message = "Network is Unreachable: " + str(e) 
+
+		self.responseList.append(self.urlcode)
+		self.responseList.append(self.phish_message)
+		self.responseList.append(self.sourceCode)
+		return self.responseList
+		# print(self.phish_message)
+		# print(self.sourceCode.read())
+		# # print(self.request.code)
+
+	def scrape_norton(self, address):
+		self.norton_address = "https://safeweb.norton.com/report/show?url="
+		# self.norton_address = "https://safeweb.norton.com"
+		self.user_url = urllib.quote_plus(address)
+		self.user_url = self.norton_address + self.user_url
+		print(self.user_url)
+		try:
+			self.browser = urllib.urlopen(self.user_url)
+			print("waiting")
+			print(self.browser.code)
+			# print(self.browser.read())
+			self.readResponse = BeautifulSoup(self.browser.read(), "html5lib")
+			self.threatTag = self.readResponse.find_all('b', text=" Total threats")
+			if len(self.threatTag) == 0:
+				self.phish_message  = "Sorry Address seems not to contain phishing." #use manual method
+			else:
+				self.totalThreats  = self.readResponse.find_all('b', text=" Total threats")[0].next_element.next_element[15]
+				if int(self.totalThreats) > 0:
+					self.phish_message = "Alert, this page contains phishing and malwares !" 
+			print(self.phish_message)
+
+		except Exception as e:
+			self.phish_message = "Sorry Network not reachable !"
+
+
+
+
+
+# proc = Process("http://www.paypaiaccount.tk/")
+# proc.scrape_norton("http://khellbazar.com/sve/Validation/login.php?cmd=login_submit&i")
+# proc.scrape_norton("http://www.paypaiaccount.tk/")
+# proc.process_google()
+
+# proc.process_url("http://lampheycommunitycouncil.co.uk/images/dir/dir/")
+# proc.process_url("http://79.143.71.138/")
+# proc.process_url("http://khellbazar.com/sve/Validation/login.php?cmd=login_submit&i")
+# proc.process_url("http://www.verify-amaz-on-sicherheitscenter.com/")
+# 
+# import socket
+import urllib2
+import os 
+import httplib
+import time
+import process
+
+from PyQt4.QtCore import QThread, SIGNAL
+
+
+class Antiphish(QThread):
+	def __init__(self,address_to_visit):
+		QThread.__init__(self)
+		self.url = address_to_visit
+		self.port = ""
+		self.isPhishUrl = False
+		self.isUrlEncrypted = False
+		self.goodSitesList = []
+		self.pageUrls = []
+		self.message = ""
+
+	def run(self):
+		print("the stuff to do the processing ")
+		# self.return_timer()
+		self.process = process.Process(str(self.url))
+		self.message = self.process.process_google()
+		# print("resp: " + self.message)
+		self.emit(SIGNAL("doneProcessing"), self.message[0], self.message[1], self.message[2])
+
+	def process_url(self):
+		print("this is the process url method")
+		self.emit(SIGNAL(finishedProcessing("QString")), "hacker")
+
+	def return_timer(self):
+		self.process = process.Process()
+		# self.process.process_url()
+		# for i in range(1, 10):
+		# 	print(i)
+		# 	time.sleep(1)
+		# 	self.emit(SIGNAL("firstMessage(QString)"), str(i))
+
+
+from PyQt4 import QtCore, QtGui
+from PyQt4.QtCore import *
+from PyQt4.QtGui import *
+from PyQt4.QtWebKit import *
+from PyQt4.QtWebKit import *
+
+import sys
+import os
+import time
+import antiPhish
+import random
+
+class startWindow(QMainWindow):
+	#this is the parent window of the application
+	def __init__(self):
+		super(QMainWindow, self).__init__()
+		self.setWindowTitle("Phishing Analysis and Detection")
+		self.iconBase = "icons"
+		self.setWindowIcon(QIcon(os.path.join(self.iconBase, "monitor.png")))
+		# print(self.iconLocation)
+		self.resize(600,442)
+		self.backgroundArray = ["phishsitenn.jpg", "attacks.jpg"]
+		# self.heightChanged.connect(self.resizeAction)
+
+		self.toolbar = QToolBar("Start the Program")
+		self.addToolBar(self.toolbar)
+
+		self.start_action = QAction("Start Phishing Analysis", self)
+		self.start_action.setStatusTip("Start Analysis and Detection")
+		self.start_action.triggered.connect(self.startNextWindow)
+		self.toolbar.addAction(self.start_action)
+
+		self.label = QLabel("this is my label")
+		self.label.setText("what the fuck")
+		self.label.setPixmap(QPixmap(os.path.join(self.iconBase, "phishsitenn.jpg")))
+		self.label.setScaledContents(True)
+		self.setCentralWidget(self.label)
+
+		#alternate the background image
+		
+
+		self.browserWindow = browserWindow(self)
+	
+	def closeEvent(self, event):
+		QtGui.qApp.quit()
+		event.ignore()
+
+	def startNextWindow(self):
+		#launchs another window 
+		self.changeBackground()
+		self.browserWindow.exec_()
+
+	def resizeEvent(self, event):
+		#when the window gets resized 
+		self.width = self.frameGeometry().width()
+		self.height = self.frameGeometry().height()
+
+	def changeBackground(self):
+		pass 
+		# while(True):
+		# 	self.index = random.randint(0,1)
+		# 	self.label.setPixmap(QPixmap(os.path.join(self.iconBase, self.backgroundArray[self.index])))
+
+class progressDialog(QDialog):
+	def __init__(self, parent=None):
+		super(progressDialog, self).__init__(parent)
+		print("that was the dialog")
+		# self.dialog = ChildDialog(self)
+		self.setWindowTitle("Notice")
+		self.setWindowIcon(QIcon(os.path.join(parent.iconBase, "information.png")))
+		self.layout = QVBoxLayout()
+		self.messageLabel = QLabel("Analysing the Source code of the Web Address...")
+		self.progressBar = QProgressBar()
+		self.progressBar.setValue(10)
+		self.layout.addWidget(self.messageLabel)
+		self.layout.addWidget(self.progressBar)
+		self.setLayout(self.layout)
+
+	def closeEvent(self, event):
+		print("something closed")
+
+class MessageDialog(QMessageBox):
+	def __init__(self, parent=None):
+		super(QWidget, self).__init__(parent)
+
+	def closeEvent(self, event):
+		print("messagebox closed ")
+
+
+
+class browserWindow(QDialog):
+	def __init__(self, parent=None):
+		super(browserWindow, self).__init__(parent)
+		self.setWindowTitle("Browser Window")
+		self.iconBase = "icons"
+		self.setWindowIcon(QIcon(os.path.join(self.iconBase, "animal-monkey.png")))
+
+		#create the layout 
+		self.layout = QVBoxLayout()
+
+
+		#create the browser 
+		self.browser = QWebView()
+		self.browser.setUrl(QUrl("http://google.com"))
+
+		self.backbtn = QAction(QIcon(os.path.join(self.iconBase, "arrow-180.png")), "Back", self)
+		self.frontbtn = QAction(QIcon(os.path.join(self.iconBase, "arrow.png")), "Forward", self)
+		self.urlInput = QLineEdit("http://google.com")
+		self.gobtn = QAction(QIcon(os.path.join(self.iconBase, "control.png")), "Analyse Web Address", self)
+		self.cancelbtn = QAction(QIcon(os.path.join(self.iconBase, "cross-circle.png")), "Stop", self)
+
+		self.toolbar = QToolBar()
+		# self.toolbar.addAction(self.backbtn)
+		# self.toolbar.addAction(self.frontbtn)
+		self.toolbar.addWidget(self.urlInput)
+		self.toolbar.addAction(self.gobtn)
+		# self.toolbar.addAction(self.cancelbtn)
+
+		#connect the actions 
+		self.gobtn.triggered.connect(self.show_dialog)
+		self.frontbtn.triggered.connect(self.goto_address)
+
+		self.layout.addWidget(self.toolbar)
+		self.layout.addWidget(self.browser)
+		self.setLayout(self.layout)
+
+
+		#creating the dialog window 
+		# self.dialog = QDialog()
+		self.dialog = progressDialog(self)
+		# self.dialog.setWindowTitle("Notice")
+		# self.dialog.setWindowIcon(QIcon(os.path.join(self.iconBase, "information.png")))
+		# self.dialog.layout = QVBoxLayout()
+		# self.dialog.messageLabel = QLabel("please wait while we try to analyse the Web Address...")
+		# self.dialog.progressBar = QProgressBar()
+		# self.dialog.progressBar.setValue(10)
+
+
+		#connect the empty url signaal
+		self.connect(self, SIGNAL("EMPTYURL"), self.emptyURLWarning)
+		self.connect(self, SIGNAL("updateBar"), self.update_progress)
+
+		# self.dialog.layout.addWidget(self.dialog.messageLabel)
+		# self.dialog.layout.addWidget(self.dialog.progressBar)
+		# self.dialog.setLayout(self.dialog.layout)
+
+	def show_dialog(self):
+		print("this is the show dialog method")
+		if len(self.urlInput.text()) == 0:
+			print('empty  urlInput')
+			self.emit(SIGNAL("EMPTYURL"))
+		else:
+			self.antiphish = antiPhish.Antiphish(self.urlInput.text())
+			self.connect(self.antiphish, SIGNAL('firstMessage(QString)'), self.update_progress)
+			self.connect(self.antiphish, SIGNAL('finishedProcessing(QString)'), self.bring_notice)
+			self.connect(self.antiphish, SIGNAL("doneProcessing"), self.bring_notice)
+			self.antiphish.start()
+			self.dialog.exec_()
+		#show the dialog window
+		
+
+	def update_progress(self):
+		for i in range(1,11):
+			self.dialog.progressBar.setValue(i* 10)
+
+	def goto_address(self):
+		self.currentUrl = self.urlInput.text()
+		self.browser.setUrl(QUrl(self.currentUrl))
+
+	def bring_notice(self, code, warning, sourceCode):
+		#this method brings out the notification 
+		#after scanning the url and getting the reports
+		# self.alertbox = QMessageBox()
+		self.emit(SIGNAL("updateBar"))
+		self.alertbox = MessageDialog()
+		if warning == "This website contains: phishing please you are advised to leave.":
+			self.alertbox.setIcon(QMessageBox.Critical)
+		else:
+			self.alertbox.setIcon(QMessageBox.Information)
+		print(code)
+		self.goto_address() #proceed to the page 
+		self.alertbox.setText(warning)
+		self.alertbox.setWindowTitle("Warning")
+		self.alertbox.setDetailedText(sourceCode)
+		self.alertbox.show()
+
+	def emptyURLWarning(self):
+		self.alertbox = QMessageBox()
+		self.alertbox.setIcon(QMessageBox.Warning)
+		self.alertbox.setText("Sorry Url field should not be empty")
+		self.alertbox.setWindowTitle("Address Error !")
+		self.alertbox.show()
+
+	def close_handler(self):
+		print("about to quit")
+		
+
+
+app = QApplication(sys.argv)
+window = startWindow()
+window.show()
+sys.exit(app.exec_()) 
